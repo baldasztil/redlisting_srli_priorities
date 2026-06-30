@@ -11,33 +11,7 @@
 library(tidyverse)
 library(data.table)
 library(sf)
-library(spmodel)
-library(ape)
-library(phyloregion)
-library(GWmodel)
-library(feather)
-library(vegan)
-library(gmodels)
-library(hillR)
-library(ggpmisc)
-library(RColorBrewer)
-library(colorBlindness)
-library(tmap)
-library(moments)
-library(paletteer)
-library(factoextra)
-library(FSA)
-library(FactoMineR)
-library(lemon)
-library(ggdensity)
-library(ggpointdensity)
-library(ggblend)
-library(geomtextpath)
-library(ggrepel)
-library(ggdist)
-library(ggridges)
-library(rstatix)
-library(plotrix)
+library(terra)
 options(dplyr.summarise.inform = FALSE) 
 
 
@@ -101,17 +75,13 @@ dist_native <- dist_native <- fread("data/dist_native.txt")
 plants_full_raw <- fread("data/wcvp_accepted_merged.txt")
 
 
-redlist_raw <- fread("data/red/cleaned_10_2025/redlist_data_04_2026.csv", sep = ",")
-table(redlist_raw$redlistCategory)
+redlist_raw <- fread("data/redlist_data_04_2026.csv", sep = ",")
 
-srli_raw <-  fread("data/red/cleaned_10_2025/srli_data_04_2026.csv", sep = ",") 
-table(srli_raw$redlistCategory)
+srli_raw <-  fread("data/srli_data_04_2026.csv", sep = ",") 
 
 
 srli_threat <-srli_raw %>% 
   filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) #
-
-threat_search_toadd <- fread("output/redlist_srli/redlist/threat_search_to_add.txt")
 
 
 redlist_threat <- redlist_raw %>% 
@@ -190,23 +160,19 @@ prop_srli <- plantlist_dist_phylo_growth %>%
   mutate(prop_org = ifelse(is.na(prop_org), 0, prop_org))
 
 
-region_global_names_raw <- plants_full %>% 
-  filter(plant_name_id %in% c(threat_search_toadd$plant_name_id, redlist_names_raw$plant_name_id))
-  
-
 
 
 # continental ------------------------------------------------------------------
 
 
-species_samples_red_list <- readRDS("output/redlist_srli/random_samples/redlist_10000_samples.rds")
+species_samples_red_list <- readRDS("output/random_samples/redlist_10000_samples.rds")
 
 redlist_null <- lapply(species_samples_red_list, subsampling.plants.null.cont, source = redlist_names_raw) %>% 
   rbindlist(idcol = "sample") %>% 
   mutate(dataset = "redlist")
 
 
-species_samples_srli_list <- readRDS("output/redlist_srli/random_samples/srli_10000_samples.rds")
+species_samples_srli_list <- readRDS("output/random_samples/srli_10000_samples.rds")
 
 
 srli_null <- lapply(species_samples_srli_list, subsampling.plants.null.cont, 
@@ -305,26 +271,6 @@ threat_null <- prop_threat_comb %>%
   right_join(nulls, by = c("LEVEL1_NAM", "dataset")) %>% 
   mutate(prop_threat_cor = prop_threat * prop_cor)
 
-
-nulls <- fread("output/redlist_srli/plotting_data/red_srli_null_prop_threat_04_2026.txt")
-
-threat_stats <- nulls %>%  
-  left_join(prop_threat_comb %>%  
-              dplyr::select(LEVEL1_NAM, prop_threat_est = prop_threat,
-                            prop_threat_lower, prop_threat_upper, n_dd, dataset), 
-            by = c("LEVEL1_NAM", "dataset")) %>% 
-  mutate(prop_threat_upper_cor = prop_threat_upper * prop_cor, 
-         prop_threat_est_cor = prop_threat_est * prop_cor, 
-         prop_threat_lower_cor = prop_threat_lower * prop_cor) %>% 
-  group_by(LEVEL1_NAM, dataset) %>% 
-  summarise(
-    mean = mean(prop_threat_est_cor), 
-            
-    q_lower = quantile(prop_threat_lower_cor, probs = 0.025), 
-    q_upper = quantile(prop_threat_upper_cor, probs = 0.975), 
-            dataset = unique(dataset))
-
-
 threat_stats <- nulls %>%  
   left_join(prop_threat_comb %>%  
               dplyr::select(LEVEL1_NAM, prop_threat_est = prop_threat,
@@ -341,6 +287,31 @@ threat_stats <- nulls %>%
     q_upper = quantile(prop_threat_upper_cor, probs = 0.975), 
     dataset = unique(dataset))
 
+threat_null_stats <- threat_null %>% 
+  group_by(LEVEL1_NAM, dataset) %>% 
+  summarise(n = n(),
+            mean = mean(prop_threat_cor , na.rm = TRUE),
+            sd = sd(prop_threat_cor , na.rm = TRUE),
+            se = sd / sqrt(n),
+            ci_lower = mean - qt(0.975, df = n - 1) * se,
+            ci_upper = mean + qt(0.975, df = n - 1) * se,
+            q_lower = quantile(prop_threat_cor, probs = 0.025), 
+            q_upper = quantile(prop_threat_cor, probs = 0.975)
+  )
+
+null_stats_w <- threat_null_stats %>% 
+  dplyr::select(LEVEL1_NAM, mean,q_lower, q_upper, dataset) %>% 
+  pivot_wider(
+    names_from = dataset,
+    values_from = c(mean,q_lower, q_upper)
+  ) %>% 
+  summarise(mean_diff =mean_srli- mean_redlist, 
+            low_diff = q_lower_srli- q_lower_redlist,
+            high_diff = q_upper_srli- q_upper_redlist,
+            abs_diff = abs(mean_srli) - abs(mean_redlist)) %>% 
+  mutate(sig = !(low_diff <= 0 & high_diff >= 0)) %>% 
+  mutate(across(where(is.numeric), ~ .x * 100))
+
 
 # comp <- threat_stats %>% 
 #   left_join(threat_stats_raref %>%  dplyr::select(
@@ -348,7 +319,6 @@ threat_stats <- nulls %>%
 #               c("LEVEL1_NAM", "dataset"))
 # plot(comp$mean ~ comp$mean_rare)
 
-fwrite(threat_stats, "red_srli_threat_stats_cor_fact_04_2026.txt")
 
 # absolute difference for paper
 
@@ -415,36 +385,12 @@ stats_w <-  prop_srli_threat_all %>%
   mutate(across(where(is.numeric), ~ round(.x * 100, 2)))
 
 
-threat_null_stats <- threat_null %>% 
-  group_by(LEVEL1_NAM, dataset) %>% 
-  summarise(n = n(),
-          mean = mean(prop_threat_cor , na.rm = TRUE),
-          sd = sd(prop_threat_cor , na.rm = TRUE),
-          se = sd / sqrt(n),
-          ci_lower = mean - qt(0.975, df = n - 1) * se,
-          ci_upper = mean + qt(0.975, df = n - 1) * se,
-          q_lower = quantile(prop_threat_cor, probs = 0.025), 
-          q_upper = quantile(prop_threat_cor, probs = 0.975)
-)
-
-null_stats_w <- threat_null_stats %>% 
-  dplyr::select(LEVEL1_NAM, mean,q_lower, q_upper, dataset) %>% 
-  pivot_wider(
-    names_from = dataset,
-    values_from = c(mean,q_lower, q_upper)
-  ) %>% 
-  summarise(mean_diff =mean_srli- mean_redlist, 
-            low_diff = q_lower_srli- q_lower_redlist,
-            high_diff = q_upper_srli- q_upper_redlist,
-            abs_diff = abs(mean_srli) - abs(mean_redlist)) %>% 
-  mutate(sig = !(low_diff <= 0 & high_diff >= 0)) %>% 
-  mutate(across(where(is.numeric), ~ .x * 100))
-
 
 
 fwrite(nulls, "red_srli_null_prop_04_2026.txt")
 fwrite(null_stats, "red_srli_null_prop_stats_04_2026.txt")
 fwrite(threat_null, "red_srli_null_prop_threat_04_2026.txt")
 fwrite(threat_null_stats, "red_srli_null_prop_stats_threat_04_2026.txt")
+fwrite(threat_stats, "red_srli_threat_stats_cor_fact_04_2026.txt")
 
 

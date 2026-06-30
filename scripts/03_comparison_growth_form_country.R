@@ -7,41 +7,11 @@
 # of species from the WCVP to the IUCN Red List and the SRLI 
 
 # Libraries --------------------------------------------------------------------
-library(plyr)
 library(tidyverse)
 library(data.table)
 library(sf)
-library(spmodel)
-library(ape)
-library(phyloregion)
-library(GWmodel)
-library(feather)
-library(vegan)
-library(gmodels)
-library(hillR)
-library(ggpmisc)
-library(RColorBrewer)
-library(colorBlindness)
-library(tmap)
-library(moments)
-library(paletteer)
-library(factoextra)
-library(FSA)
-library(FactoMineR)
-library(lemon)
-library(ggdensity)
-library(ggpointdensity)
-library(ggblend)
-library(geomtextpath)
-library(ggrepel)
-library(ggdist)
-library(ggridges)
-library(rstatix)
-library(plotrix)
-library(ggpubr)
-library(egg)
-library(patchwork)
-library(janitor)
+library(terra)
+options(dplyr.summarise.inform = FALSE) 
 
 
 
@@ -94,19 +64,12 @@ growth.form.rand <- function(species_sample, method) {
 dist_native <- dist_native <- fread("data/dist_native.txt") 
 plants_full_raw <- fread("data/wcvp_accepted_merged.txt")
 
-redlist_raw <- fread("data/red/cleaned_10_2025/redlist_data_04_2026.csv", sep = ",")
+redlist_raw <- fread("data/redlist_data_04_2026.csv", sep = ",")
 table(redlist_raw$redlistCategory)
 
-srli_raw <-  fread("data/red/cleaned_10_2025/srli_data_04_2026.csv", sep = ",") %>% 
+srli_raw <-  fread("data/srli_data_04_2026.csv", sep = ",") %>% 
   filter(!is.na(redlistCategory))
 
-
-srli_threat <-srli_raw %>% 
-  filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) #
-
-
-redlist_threat <- redlist_raw %>% 
-  filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) # "Endangered", "Vulnerable",
 
 
 tdwg_3 <- st_read(dsn ="data/wgsrpd-master/level3") %>% 
@@ -162,21 +125,14 @@ redlist_names_raw <- plants_full %>%
   filter(plant_name_id %in% redlist_raw$plant_name_id)
 
 
-redlist_names_threat <- plants_full %>% 
-  filter(plant_name_id %in% redlist_threat$plant_name_id) 
-
-
 srli_names_raw <- plants_full %>% 
-  filter(plant_name_id %in% srli_raw$plant_name_id) %>% 
-  filter(plant_name_id %in% plantlist_dist_phylo_growth$plant_name_id) 
-
-srli_names_threat <- plants_full %>% 
-  filter(plant_name_id %in% srli_threat$plant_name_id) 
+  filter(plant_name_id %in% srli_raw$plant_name_id)
 
 
 
-species_samples_red_list <- readRDS("output/redlist_srli/random_samples/redlist_10000_samples.rds")
-species_samples_srli_list <- readRDS("output/redlist_srli/random_samples/srli_10000_samples.rds")
+
+species_samples_red_list <- readRDS("output/random_samples/redlist_10000_samples.rds")
+species_samples_srli_list <- readRDS("output/random_samples/srli_10000_samples.rds")
 
 
 
@@ -256,7 +212,6 @@ redlist_continent_growths <- plantlist_dist_phylo_growth %>%
   left_join(continent_names, by = "LEVEL3_NAM")
 
 
-
 fwrite(redlist_continent_growths, "red_growths_country_comp_04_2026.txt")
 
 # srli patterns  ---------------------------------------------------------------
@@ -307,8 +262,6 @@ dif_to_baseline_srli <- srli_growth %>%
     dataset = "srli"
     
   ) 
-
-
 
 
 

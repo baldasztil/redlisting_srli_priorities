@@ -6,43 +6,12 @@
 # This script is used to compare the growth form distribution of a random samples 
 # of species from the WCVP to the IUCN Red List and the SRLI 
 
-# Intro ------------------------------------------------------------------------
-
 
 # Libraries --------------------------------------------------------------------
 library(tidyverse)
 library(data.table)
 library(sf)
-library(spmodel)
-library(ape)
-library(phyloregion)
-library(GWmodel)
-library(feather)
-library(vegan)
-library(gmodels)
-library(hillR)
-library(ggpmisc)
-library(RColorBrewer)
-library(colorBlindness)
-library(tmap)
-library(moments)
-library(paletteer)
-library(factoextra)
-library(FSA)
-library(FactoMineR)
-library(lemon)
-library(ggdensity)
-library(ggpointdensity)
-library(ggblend)
-library(geomtextpath)
-library(ggrepel)
-library(ggdist)
-library(ggridges)
-library(rstatix)
-library(plotrix)
-library(ggpubr)
-library(egg)
-library(patchwork)
+library(terra)
 
 growth.form.rand <- function(species_sample, method) {
   #species_sample <- sample_n(plantlist_names, spec_n)

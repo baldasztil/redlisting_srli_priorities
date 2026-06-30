@@ -1,54 +1,25 @@
-# Subsampling Global Plant Biodiversity 13/02/2022
-# data available @ ??
 
 # Authors: Ludwig Baldaszti - lbaldaszti@rbge.org.uk
-# Date: 13/02/2022
+# Date: 22 June 2026
+
 
 # Intro ------------------------------------------------------------------------
-
+# This script is used to create the main figures of the manuscript based on the outputs of the other scripts. 
 
 # Libraries --------------------------------------------------------------------
 
-library(tidyverse)
 library(data.table)
+library(tidyverse)
 library(sf)
-library(spmodel)
-library(ape)
-library(phyloregion)
-library(GWmodel)
-library(feather)
-library(vegan)
-library(gmodels)
-library(hillR)
-library(ggpmisc)
-library(RColorBrewer)
-library(colorBlindness)
-library(tmap)
-library(moments)
-library(paletteer)
-library(factoextra)
-library(FSA)
-library(FactoMineR)
-library(lemon)
-library(ggdensity)
-library(ggpointdensity)
-library(ggblend)
-library(geomtextpath)
 library(ggrepel)
-library(ggdist)
-library(ggridges)
-library(rstatix)
-library(plotrix)
 library(ggpubr)
-library(egg)
-library(ggrepel)
-library(patchwork)
-library(gridExtra)
 library(patchwork)
 library(grid) 
+library(gridExtra)
 library(cowplot)
+library(ggplotify)
 
-#quote(frac(Threatened~species, Total~species))
+
 
 
 plot_prop_sample_f <- function(continent_name, 
@@ -121,7 +92,7 @@ plot_growth_sample_f <- function(continent_name,
     guides(fill = guide_legend(nrow = 1))
   
   # ggplot(growth_stats, aes(x = growth_form, y = dif)) +
-  #   #geom_segment(yend = redlist_continent_growths$dif, y = 0, x= redlist_continent_growths$growth_form, 
+  #   #geom_segment(yend = redlist_country_growths$dif, y = 0, x= redlist_country_growths$growth_form, 
   #   #             col ="grey") +
   #   #geom_point(aes(col = growth_form), size = 2.5) + 
   #   geom_bar(aes(fill = growth_form),  stat = "identity") + 
@@ -245,12 +216,12 @@ plot_curves_f <- function(continent_name,
 
 # data -------------------------------------------------------------------------
 
-null_prop_stats <- fread("output/redlist_srli/plotting_data/red_srli_null_prop_stats_04_2026.txt") 
+null_prop_stats <- fread("output/plotting_data/red_srli_null_prop_stats_04_2026.txt") 
 
-null_props <- fread("output/redlist_srli/plotting_data/red_srli_null_prop_04_2026.txt")
+null_props <- fread("output/plotting_data/red_srli_null_prop_04_2026.txt")
 
-
-null_growth <- fread("output/redlist_srli/plotting_data/red_srli_null_growth_stats_cont_04_2026.txt") %>% 
+null_growth <- 
+  fread("output/plotting_data/red_srli_null_growth_stats_cont_04_2026.txt") %>% 
   mutate(n = ifelse(is.na(n), 0, n), 
            
            dif_total = value - n, 
@@ -269,53 +240,28 @@ null_growth <- fread("output/redlist_srli/plotting_data/red_srli_null_growth_sta
            dif3_max = (n - q_lower) /  sd,
            dif3_min = (n - q_upper) / sd,
            
-           
-           # dif_prop = (n / nrow(srli_names_raw)) - (mean / nrow(srli_names_raw)),
-           # 
-           # dif_prop_max = (n / nrow(srli_names_raw)) - (q_lower / nrow(srli_names_raw)),
-           # dif_prop_min = (n / nrow(srli_names_raw)) - (q_upper / nrow(srli_names_raw)), 
+  
         dif_prop_r = n / mean, 
          dif_prop_r_min = n / q_lower, 
          dif_prop_r_max = n / q_upper)
  
 
-null_threat <- fread("output/redlist_srli/plotting_data/red_srli_threat_stats_cor_fact_04_2026.txt") %>% 
+null_threat <- 
+  fread("output/plotting_data/red_srli_threat_stats_cor_fact_04_2026.txt") %>% 
   mutate(dataset = paste0(dataset, "_threat"))
 
-acc_curves_cont <- fread("output/redlist_srli/plotting_data/red_continent_acc_curves_04_2026.txt")
+acc_curves_cont <- fread("output/plotting_data/red_continent_acc_curves_04_2026.txt")
+redlist_country_growths <- fread("output/plotting_data/red_growths_country_comp_04_2026.txt")
+
 
 tdwg_3 <- st_read(dsn ="data/wgsrpd-master/level3") %>% 
   filter(!LEVEL3_COD == "BOU")
 
-continents <- unique(tdwg_3$LEVEL1_NAM)
 
-eqearth_crs <- "+proj=eqearth"
 
 
 # --- plotting  ----------------------------------------------------------------
-
-
-# #m <-plot_map_f(continent_name = "ASIA-TEMPERATE")
-# 
-# x <- plot_curves_f(continent_name = "EUROPE", pal_val = "darkorange")
-# 
-# a <-plot_prop_sample_f(continent_name = "EUROPE")
-# 
-# b <- plot_threat_sample_f(continent_name = "EUROPE")
-# 
-# c <- plot_growth_sample_f(continent_name = "EUROPE")
-# 
-# #d <- plot_pca_f(continent_name = "EUROPE")
-# 
-# x+ a+b+c + plot_layout(nrow = 2)
-
-
-tdwg_3_map <- tdwg_3  
-#filter(!LEVEL1_NAM == "ANTARCTICA") 
-
-
-tdwg_32 <- tdwg_3 %>% 
-  dplyr::select(-LEVEL1_NAM) 
+continents <- unique(tdwg_3$LEVEL1_NAM)
 
 
 eqearth_crs <- "+proj=eqearth"
@@ -327,9 +273,6 @@ border <- st_graticule() |>
   st_segmentize(500000) |>
   st_transform(st_crs(eqearth_crs)) |>
   st_cast("POLYGON")
-
-
-
 
 
 #conts <- unique(tdwg_3$LEVEL1_NAM)
@@ -350,9 +293,6 @@ pal_val <- c("#FF7F0FFF","#FFB977FF",
 plot_list <- list()
 
 plot_index <- 1
-library(ggplotify)
-library(cowplot)
-library(grid)
 
 for (i in 1:length(conts)) {
   
@@ -455,7 +395,6 @@ ggsave("all_continents_leg.svg", leg, width = 6,
 
 # --- growth from maps 
 
-redlist_continent_growths <- fread("output/redlist_srli/plotting_data/red_growths_country_comp_04_2026.txt")
 
 
 
@@ -492,45 +431,45 @@ get_optimal_breaks <- function(x, min_step = 100) {
 }
 
 plot.growth.map.corr <- function(growth, 
-                                 data = redlist_continent_growths) {
+                                 data = redlist_country_growths) {
   
-  redlist_continent_growths_f <- data %>% 
+  redlist_country_growths_f <- data %>% 
     filter(growth_form == growth)
   
-  extreme_pts <- redlist_continent_growths_f %>%
+  extreme_pts <- redlist_country_growths_f %>%
     ungroup() %>% 
     # group_by(bi_class) %>%  
     slice_max(dif, n = 5)
   
   #options(warn = 1)
-  extreme_pts <- redlist_continent_growths_f %>%
+  extreme_pts <- redlist_country_growths_f %>%
     ungroup() %>% 
     # group_by(bi_class) %>%  
     slice_max(dif *-1, n = 5) %>% 
     rbind(extreme_pts)
   
-  extreme_pts <- redlist_continent_growths_f %>%
+  extreme_pts <- redlist_country_growths_f %>%
     ungroup() %>% 
     # group_by(bi_class) %>%  
     slice_max(n, n = 5) %>% 
     rbind(extreme_pts)
   
   
-  extreme_pts <- redlist_continent_growths_f %>%
+  extreme_pts <- redlist_country_growths_f %>%
     ungroup() %>% 
     # group_by(bi_class) %>%  
     slice_max(mean, n = 5) %>% 
     rbind(extreme_pts) %>% 
     filter(!duplicated(LEVEL3_NAM))
   
-  max_f <- max(c(redlist_continent_growths_f$n, redlist_continent_growths_f$q_upper), na.rm = T)
+  max_f <- max(c(redlist_country_growths_f$n, redlist_country_growths_f$q_upper), na.rm = T)
   
   breaks3 <- get_optimal_breaks(max_f)
   
   
   
   continent_dif_plot <- ggplot() +
-    geom_point(data = redlist_continent_growths_f, aes(x = mean, y = n, col = growth_form), 
+    geom_point(data = redlist_country_growths_f, aes(x = mean, y = n, col = growth_form), 
                size = 1, 
                show.legend = F) + 
     geom_text_repel(
@@ -544,7 +483,7 @@ plot.growth.map.corr <- function(growth,
       show.legend = F
     ) +
     scale_color_manual(values = cols_re_p) +
-    geom_errorbar(data = redlist_continent_growths_f, 
+    geom_errorbar(data = redlist_country_growths_f, 
                   aes(xmin= q_lower, xmax=q_upper, x= mean, y = n, col = growth_form), 
                   width = 0.25, 
                   show.legend = F) +
@@ -560,13 +499,13 @@ plot.growth.map.corr <- function(growth,
   
   
   
-  x <- redlist_continent_growths_f %>% 
+  x <- redlist_country_growths_f %>% 
     right_join(tdwg_3, by = "LEVEL3_NAM") %>% 
     st_as_sf()
   
   
-  min<- min(redlist_continent_growths_f$dif, na.rm = T)
-  max <- max(redlist_continent_growths_f$dif, na.rm = T)
+  min<- min(redlist_country_growths_f$dif, na.rm = T)
+  max <- max(redlist_country_growths_f$dif, na.rm = T)
   
   if(abs(min) > abs(max)) {
     min<- plyr::round_any(min, 100, f = floor)
@@ -583,7 +522,7 @@ plot.growth.map.corr <- function(growth,
     breaks2 <- seq(-max, max, length.out = 5)
   }
   
-  diff_plot <- ggplot(redlist_continent_growths_f %>% 
+  diff_plot <- ggplot(redlist_country_growths_f %>% 
                         right_join(tdwg_3, by = "LEVEL3_NAM") %>% 
                         st_as_sf()) +
     #geom_sf(data = border, fill = "azure", color = "black", size = 0.2) +
@@ -620,7 +559,7 @@ plot.growth.map.corr <- function(growth,
 
 
 
-growth_vec <- unique(redlist_continent_growths$growth_form)[c(5,3,4,2,7,1,6)]
+growth_vec <- unique(redlist_country_growths$growth_form)[c(5,3,4,2,7,1,6)]
 
 cols <- c(nationalparkcolors::park_palette("Saguaro")[1:5], "#5b2635")
 cols_re <- c(cols[c(6,4,5,3,2,1)], "black")
