@@ -77,18 +77,39 @@ plants_full_raw <- fread("data/wcvp_accepted_merged.txt")
 
 redlist_raw <- fread("data/redlist_data_04_2026.csv", sep = ",")
 
-srli_raw <-  fread("data/srli_data_04_2026.csv", sep = ",") 
+redlist_threat <- redlist_raw %>% 
+  filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) # "Endangered", "Vulnerable",
 
+redlist_ext <- redlist_raw %>% 
+  filter(redlistCategory %in% c("Extinct", "Extinct in the Wild"))
+
+redlist_ntlc <- redlist_raw %>%
+  filter(redlistCategory %in% c("Near Threatened", "Least Concern"))
+
+redlist_dd <- redlist_raw %>% 
+  filter(redlistCategory %in% c("Data Deficient")) #
+
+
+
+srli_raw <-  fread("data/srli_data_09_2026.csv", sep = ",") 
+
+
+srli_ext <- srli_raw %>% 
+  filter(redlistCategory %in% c("Extinct", "Extinct in the Wild"))
 
 srli_threat <-srli_raw %>% 
   filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) #
 
-
-redlist_threat <- redlist_raw %>% 
-  filter(redlistCategory %in% c("Endangered", "Vulnerable", "Critically Endangered")) 
+srli_dd <-srli_raw %>% 
+  filter(redlistCategory %in% c("Data Deficient"))  
 
 tdwg_3 <- st_read(dsn ="data/wgsrpd-master/level3") %>% 
   filter(!LEVEL3_COD == "BOU")
+
+
+xxx <- srli_raw %>% 
+  filter(year > 2015)
+  
 
 continent_names <- tdwg_3 %>% 
   dplyr::select(LEVEL1_NAM, LEVEL3_COD, LEVEL2_NAM) %>% 
@@ -231,38 +252,130 @@ null_stats_w <- null_stats %>%
 # random sampling by diving proportion observed / proportion expected
 
 nulls <- rbind(redlist_null, srli_null) %>% 
-  mutate(prop_cor =n_prop / prop_org)
+  mutate(prop_cor = n_prop / prop_org)
 
+# sp_red <- dist_native_calc %>% 
+#   filter(plant_name_id %in% redlist_names_raw$plant_name_id) %>% 
+#   group_by(LEVEL1_NAM) %>%  
+#   summarise(n_org = n_distinct(plant_name_id)) 
+# 
+# prop_red_threat <- dist_native_calc %>% 
+#   filter(plant_name_id %in% redlist_names_threat$plant_name_id) %>% 
+#   group_by(LEVEL1_NAM) %>%  
+#   summarise(n_threat = n_distinct(plant_name_id), 
+#             dataset = "redlist") %>% 
+#   left_join(sp_red, by = "LEVEL1_NAM") %>% 
+#   mutate(prop_threat =  n_threat /n_org, 
+#          prop_org_tot = n_org / nrow(redlist_names_raw), 
+#          prop_threat_tot = n_threat /nrow(redlist_names_raw))
+# 
+# sp_srli <- dist_native_calc %>% 
+#   filter(plant_name_id %in% srli_names_raw$plant_name_id) %>% 
+#   group_by(LEVEL1_NAM) %>%  
+#   summarise(n_org = n_distinct(plant_name_id)) 
+# 
+# prop_threat_comb <- dist_native_calc %>% 
+#   filter(plant_name_id %in% srli_names_threat$plant_name_id) %>% 
+#   group_by(LEVEL1_NAM) %>%  
+#   summarise(n_threat = n_distinct(plant_name_id), 
+#             dataset = "srli") %>% 
+#   left_join(sp_srli, by = "LEVEL1_NAM") %>% 
+#   mutate(prop_threat =  n_threat / n_org, 
+#          prop_org_tot = n_org / nrow(srli_names_raw), 
+#          prop_threat_tot = n_threat /nrow(srli_names_raw) ) %>%  
+#   rbind(prop_red_threat) 
+
+
+plantlist_names <- plants_full %>%  
+  dplyr::select(plant_name_id, taxon_rank, family, taxon_name, growth_form)
+
+dist_native_calc_cont <- dist_native_calc %>% 
+  group_by(LEVEL1_NAM, plant_name_id) %>% 
+  summarise() %>% 
+  left_join(plantlist_names, by = "plant_name_id") 
+
+
+plantlist_dist_threat_red <- dist_native_calc_cont %>% 
+  filter(plant_name_id %in% redlist_raw$plant_name_id) %>% 
+  mutate(threat = case_when(
+    plant_name_id %in% redlist_threat$plant_name_id     ~ "threatened",
+    plant_name_id %in% redlist_dd$plant_name_id         ~ "data_deficient",
+    plant_name_id %in% redlist_ext$plant_name_id         ~ "extinct",
+   # plant_name_id %in% redlist_ntlc$plant_name_id         ~ "not_threatened",
+    
+    TRUE ~ "not_threatened"
+  ))
+table(plantlist_dist_threat_red$threat)
+n_distinct(plantlist_dist_threat_red$plant_name_id)
+
+plantlist_dist_threat_srli <- dist_native_calc_cont %>% 
+  filter(plant_name_id %in% srli_raw$plant_name_id) %>% 
+  left_join(plantlist_names, by = "plant_name_id") %>% 
+  mutate(threat = case_when(
+    plant_name_id %in% srli_threat$plant_name_id     ~ "threatened",
+    plant_name_id %in% srli_dd$plant_name_id         ~ "data_deficient",
+    plant_name_id %in% srli_ext$plant_name_id         ~ "extinct",
+    
+    TRUE ~ "not_threatened"
+  ))
+table(plantlist_dist_threat_srli$threat)
+n_distinct(plantlist_dist_threat_srli$plant_name_id)
+
+# calculations of threat counts 
 sp_red <- dist_native_calc %>% 
-  filter(plant_name_id %in% redlist_names_raw$plant_name_id) %>% 
+  filter(plant_name_id %in% redlist_raw$plant_name_id) %>% 
+  filter(!plant_name_id %in% redlist_ext$plant_name_id) %>% 
   group_by(LEVEL1_NAM) %>%  
   summarise(n_org = n_distinct(plant_name_id)) 
 
+sp_red_dd <- dist_native_calc %>% 
+  filter(plant_name_id %in% redlist_dd$plant_name_id) %>% 
+  group_by(LEVEL1_NAM) %>%  
+  summarise(n_dd = n_distinct(plant_name_id)) 
+
+
 prop_red_threat <- dist_native_calc %>% 
-  filter(plant_name_id %in% redlist_names_threat$plant_name_id) %>% 
+  filter(plant_name_id %in% redlist_threat$plant_name_id) %>% 
   group_by(LEVEL1_NAM) %>%  
   summarise(n_threat = n_distinct(plant_name_id), 
             dataset = "redlist") %>% 
   left_join(sp_red, by = "LEVEL1_NAM") %>% 
-  mutate(prop_threat =  n_threat /n_org, 
-         prop_org_tot = n_org / nrow(redlist_names_raw), 
-         prop_threat_tot = n_threat /nrow(redlist_names_raw))
+  left_join(sp_red_dd, by = "LEVEL1_NAM") %>%
+  replace(is.na(.), 0) %>% 
+  mutate(
+    prop_threat_lower =  n_threat / n_org, 
+    prop_threat = n_threat / (n_org - n_dd), 
+    prop_threat_upper =  (n_threat+n_dd) / n_org,
+    prop_org_tot = n_org / nrow(srli_raw), 
+    prop_threat_tot = n_threat /nrow(srli_raw)) 
 
 sp_srli <- dist_native_calc %>% 
-  filter(plant_name_id %in% srli_names_raw$plant_name_id) %>% 
+  filter(plant_name_id %in% srli_raw$plant_name_id) %>% 
+  filter(!plant_name_id %in% srli_ext$plant_name_id) %>% 
   group_by(LEVEL1_NAM) %>%  
   summarise(n_org = n_distinct(plant_name_id)) 
 
+
+sp_srli_dd <- dist_native_calc %>% 
+  filter(plant_name_id %in% srli_dd$plant_name_id) %>% 
+  group_by(LEVEL1_NAM) %>%  
+  summarise(n_dd = n_distinct(plant_name_id)) 
+
 prop_threat_comb <- dist_native_calc %>% 
-  filter(plant_name_id %in% srli_names_threat$plant_name_id) %>% 
+  filter(plant_name_id %in% srli_threat$plant_name_id) %>% 
   group_by(LEVEL1_NAM) %>%  
   summarise(n_threat = n_distinct(plant_name_id), 
             dataset = "srli") %>% 
   left_join(sp_srli, by = "LEVEL1_NAM") %>% 
-  mutate(prop_threat =  n_threat / n_org, 
-         prop_org_tot = n_org / nrow(srli_names_raw), 
-         prop_threat_tot = n_threat /nrow(srli_names_raw) ) %>%  
-  rbind(prop_red_threat) 
+  left_join(sp_srli_dd, by = "LEVEL1_NAM") %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(
+    prop_threat_lower =  n_threat / n_org, 
+    prop_threat = n_threat / (n_org - n_dd), 
+    prop_threat_upper =  (n_threat+n_dd) / n_org,
+    prop_org_tot = n_org / nrow(srli_raw), 
+    prop_threat_tot = n_threat /nrow(srli_raw))  %>% 
+  rbind(prop_red_threat)
 
 
 # calculate expected threat ----------------------------------------------------
@@ -287,38 +400,37 @@ threat_stats <- nulls %>%
     q_upper = quantile(prop_threat_upper_cor, probs = 0.975), 
     dataset = unique(dataset))
 
-threat_null_stats <- threat_null %>% 
-  group_by(LEVEL1_NAM, dataset) %>% 
+threat_null_stats <- threat_null %>%
+  group_by(LEVEL1_NAM, dataset) %>%
   summarise(n = n(),
             mean = mean(prop_threat_cor , na.rm = TRUE),
             sd = sd(prop_threat_cor , na.rm = TRUE),
             se = sd / sqrt(n),
             ci_lower = mean - qt(0.975, df = n - 1) * se,
             ci_upper = mean + qt(0.975, df = n - 1) * se,
-            q_lower = quantile(prop_threat_cor, probs = 0.025), 
+            q_lower = quantile(prop_threat_cor, probs = 0.025),
             q_upper = quantile(prop_threat_cor, probs = 0.975)
   )
 
-null_stats_w <- threat_null_stats %>% 
+
+
+
+null_stats_w <- threat_stats %>% 
   dplyr::select(LEVEL1_NAM, mean,q_lower, q_upper, dataset) %>% 
   pivot_wider(
     names_from = dataset,
     values_from = c(mean,q_lower, q_upper)
   ) %>% 
-  summarise(mean_diff =mean_srli- mean_redlist, 
-            low_diff = q_lower_srli- q_lower_redlist,
-            high_diff = q_upper_srli- q_upper_redlist,
-            abs_diff = abs(mean_srli) - abs(mean_redlist)) %>% 
+  summarise(mean_diff =mean_redlist- mean_srli, 
+            low_diff = q_lower_redlist- q_lower_srli,
+            high_diff = q_upper_redlist- q_upper_srli,
+            
+            min_possible_gap = q_lower_redlist  - q_upper_srli, 
+            max_possible_gap = q_upper_redlist - q_lower_srli,
+            
+            abs_diff = abs(mean_redlist) - abs(mean_srli)) %>% 
   mutate(sig = !(low_diff <= 0 & high_diff >= 0)) %>% 
-  mutate(across(where(is.numeric), ~ .x * 100))
-
-
-# comp <- threat_stats %>% 
-#   left_join(threat_stats_raref %>%  dplyr::select(
-#     mean_rare = mean, LEVEL1_NAM, dataset), by = 
-#               c("LEVEL1_NAM", "dataset"))
-# plot(comp$mean ~ comp$mean_rare)
-
+  mutate(across(where(is.numeric), ~ round(.x * 100, 2))) 
 
 # absolute difference for paper
 
@@ -386,11 +498,10 @@ stats_w <-  prop_srli_threat_all %>%
 
 
 
-
-fwrite(nulls, "red_srli_null_prop_04_2026.txt")
-fwrite(null_stats, "red_srli_null_prop_stats_04_2026.txt")
-fwrite(threat_null, "red_srli_null_prop_threat_04_2026.txt")
-fwrite(threat_null_stats, "red_srli_null_prop_stats_threat_04_2026.txt")
-fwrite(threat_stats, "red_srli_threat_stats_cor_fact_04_2026.txt")
+fwrite(nulls, "red_srli_null_prop_09_2026.txt")
+fwrite(null_stats, "red_srli_null_prop_stats_09_2026.txt")
+fwrite(threat_null, "red_srli_null_prop_threat_09_2026.txt")
+fwrite(threat_null_stats, "red_srli_null_prop_stats_threat_09_2026.txt")
+fwrite(threat_stats, "red_srli_threat_stats_cor_fact_09_2026.txt")
 
 

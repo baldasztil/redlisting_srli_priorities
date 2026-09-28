@@ -6,11 +6,11 @@ library(zoomerjoin)
 library(rWCVP)
 requireNamespace("rWCVPdata")
 
-redlist_full <- read.csv("data/red/redlist_17_10_2025/taxonomy.csv") %>% 
+redlist_full <- read.csv("../../data/red/redlist_17_10_2025/taxonomy.csv") %>% 
   mutate(authority = str_replace(authority, "amp;", ""))
 
 
-redlist_index <- read.csv("srli_redlist_match_04_26.csv") %>% 
+redlist_index <- read.csv("../../srli_redlist_match_04_26.csv") %>% 
   left_join(redlist_full, by = "scientificName")
 
 
@@ -25,13 +25,13 @@ redlist_analysis <- redlist_full %>%
 length(unique(redlist_analysis$scientificName))
 
 
-wcvp_raw <- fread("data/wcvp/wcvp_names_032023.csv", header = T)
-dist_raw <- fread("data/wcvp/wcvp_distribution_032023.csv", header = T) 
+wcvp_raw <- fread("../../data/wcvp/wcvp_names_032023.csv", header = T)
+dist_raw <- fread("../../data/wcvp/wcvp_distribution_032023.csv", header = T) 
 
 
 
-plants_full_all <- fread("data/wcvp_accepted_merged.txt")
-dist_native_all <- fread("data/dist_native.txt")
+plants_full_all <- fread("../../data/wcvp_accepted_merged.txt")
+dist_native_all <- fread("../../data/dist_native.txt")
 
 
 matched_names <- wcvp_match_names(names_df = redlist_analysis, wcvp_names =  wcvp_raw, 
@@ -149,7 +149,7 @@ length(unique(full_sp$taxon_name))
 
 
 
-redlist_full_ass <- fread(("data/red/redlist_17_10_2025/assessments.csv")) %>% 
+redlist_full_ass <- fread(("../../data/red/redlist_17_10_2025/assessments.csv")) %>% 
   mutate(year = as.numeric(substr(assessmentDate, 1, 4)))  %>% 
   mutate(redlistCategory = case_when(
     redlistCategory == "Lower Risk/conservation dependent" ~ "Least Concern", 
@@ -226,25 +226,35 @@ srli_all <- redlist_index %>%
   left_join(full_sp, by = "scientificName") %>% 
   filter(!is.na(plant_name_id))
 
-srli_no_cat <- srli_all %>% 
-  filter(is.na(redlistCategory)) %>% 
-  left_join(redlist_full_ass %>%  
-              dplyr::select(red_cat = redlistCategory, 
-                                                red_year = year, 
-                                                red_year_pub = yearPublished, 
-                                                scientificName), by = "scientificName") %>%  
-  filter(red_cat %in% unique(srli_all$redlistCategory)) %>% 
-  mutate(redlistCategory = red_cat, 
-         yearPublished = red_year_pub, 
-         year = red_year
-  )  %>% 
+
+
+# most recent redlist categories
+srli_join <- srli_all %>%
+  left_join(
+    redlist_full_adj %>%
+      dplyr::select(
+        red_cat = redlistCategory,
+        red_year = year,
+        red_year_pub = yearPublished,
+        scientificName_red = scientificName, 
+        taxon_name
+      ),
+    by = "taxon_name"
+  ) %>%
+  mutate(
+    redlistCategory = coalesce(red_cat, redlistCategory),
+    yearPublished   = coalesce(red_year_pub, yearPublished),
+    year            = coalesce(red_year, year)
+  ) 
+
+
+test <- srli_join %>% 
+  filter(is.na(red_cat)) %>% 
+  filter(!is.na(redlistCategory)) %>% 
+  filter(plant_name_id %in% plants_full_all$plant_name_id)  
+
+srli <- srli_join %>%
   dplyr::select(any_of(names(srli_all)))
-
-sum(table(srli_no_cat$redlistCategory))
-
-srli <- srli_all %>% 
-  filter(!scientificName %in% srli_no_cat$scientificName) %>% 
-  rbind(srli_no_cat)
 
 
 all_dup_srli <- datawizard::data_duplicated(srli, select = "taxon_name")
@@ -253,46 +263,33 @@ all_dup_srli <- datawizard::data_duplicated(srli, select = "taxon_name")
 srli_dups1 <- all_dup_srli %>% 
   filter(taxon_name == scientificName) %>%
   ungroup() %>% 
-  dplyr::select(-c(Row, count_na)) 
+  dplyr::select(-c(Row, count_na))  %>% 
+  filter(!duplicated(taxon_name))
 
 srli_dups <- all_dup_srli %>% 
   group_by(taxon_name) %>%
-  filter(!any(taxon_name == scientificName, na.rm = TRUE)) %>%
+  # filter(!any(taxon_name == scientificName, na.rm = TRUE)) %>%
   ungroup() %>%  
-  mutate(status_ordered = factor(redlistCategory, levels = levels_order, ordered = TRUE))  %>% 
+  mutate(status_ordered = factor(redlistCategory, 
+                                 levels = levels_order, 
+                                 ordered = TRUE)) %>% 
   group_by(taxon_name) %>%
   slice_min(status_ordered, with_ties = F) %>% 
   ungroup() %>%  
-  dplyr::select(-c(Row, status_ordered, count_na)) %>% 
+  dplyr::select(-c(Row, status_ordered, count_na))  %>% 
+  filter(!taxon_name %in% srli_dups1$taxon_name) %>% 
   rbind(srli_dups1)
-
 
 srli_full <- srli %>% 
   filter(!taxon_name %in% srli_dups$taxon_name) %>% 
-  #rbind(srli_dups) %>% 
+  rbind(srli_dups) %>% 
   filter(plant_name_id %in% plants_full_all$plant_name_id)  %>% 
   filter(!is.na(redlistCategory))
 
 n_distinct(srli_full$plant_name_id) - nrow(srli_full)
-table(srli_full$redlistCategory)
+table(srli_full$id)
 
-write.csv(srli_full, "data/red/cleaned_10_2025/srli_data_04_2026.csv")
+write.csv(srli_full, "data/srli_data_09_2026.csv")
 
-# 
-# redlist_in_srli <- redlist_full_adj  %>% 
-#   filter(plant_name_id %in% srli_full$plant_name_id) %>% 
-#   filter(year > 2015)
-# 
-# table(redlist_in_srli$redlistCategory) / sum(table(redlist_in_srli$redlistCategory))
-# 
-# 
-# srli_in_red <- srli_full  %>% 
-#   filter(plant_name_id %in% redlist_in_srli$plant_name_id) %>% 
-#   filter(year < 2015)
-# 
-# table(srli_in_red$redlistCategory) / sum(table(srli_in_red$redlistCategory))
-# 
-# redlist_match_srli <- redlist_full_adj  %>% 
-#   filter(plant_name_id %in% srli_in_red$plant_name_id)
-# 
-# table(redlist_match_srli$redlistCategory) / sum(table(redlist_match_srli$redlistCategory))
+n_distinct(c(srli_full$plant_name_id, redlist_full_adj$plant_name_id))
+

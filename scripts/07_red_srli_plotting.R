@@ -157,26 +157,61 @@ plot_map_f <- function(continent_name, pal_val = col_pick) {
   tdwg_3_map <-  tdwg_3 %>%  
     filter(LEVEL1_NAM == continent_name) 
   
-  ggplot(tdwg_3_map) +
-    geom_sf(data = border, fill = "white", color = "black", size = 0.2) +
-    geom_sf(data = tdwg_3, fill = "white", color = "black", size = 0.1) +
-    geom_sf(aes(fill = LEVEL1_NAM), show.legend = F, color = "transparent", size = 0.1) +
-   # paletteer::scale_fill_paletteer_d("colorblindr::OkabeIto_black") +
-    scale_fill_manual(values = pal_val) +
-    #facet_grid(~LEVEL1_NAM, switch = "y") +
-    coord_sf(crs = eqearth_crs, expand = T) +
-    theme_minimal(base_size = 12) +
-    labs(
-      title = continent_name
-    )  +
-    theme(
-      plot.title.position = "plot",
-      plot.title = element_text(face = "bold",size = 12, hjust = 0.5),
-      axis.text = element_blank(),
-      axis.ticks = element_blank(), 
-      strip.text = element_blank(),
-      # strip.switch.pad.grid = unit(0.4, "cm") 
-    ) 
+  if(continent_name == "PACIFIC") {
+    
+    tdwg_3_p <-  tdwg_3 %>% 
+      st_drop_geometry() %>% 
+      st_as_sf(coords = c("lon","lat"), crs = st_crs(tdwg_3)) %>% 
+      st_transform(st_crs(eqearth_crs)) %>%  
+      filter(LEVEL1_NAM == continent_name) 
+      
+    
+    ggplot(tdwg_3_p) +
+      geom_sf(data = border, fill = "white", color = "black", size = 0.2) +
+     geom_sf(data = tdwg_3, fill = "white", color = "black", size = 0.1) +
+      geom_sf(aes(col = LEVEL1_NAM), show.legend = F,
+              size = 1) +
+      # paletteer::scale_fill_paletteer_d("colorblindr::OkabeIto_black") +
+      scale_color_manual(values = pal_val) +
+      #facet_grid(~LEVEL1_NAM, switch = "y") +
+      coord_sf(crs = eqearth_crs, expand = T) +
+      theme_minimal(base_size = 12) +
+      labs(
+        title = continent_name
+      )  +
+      theme(
+        plot.title.position = "plot",
+        plot.title = element_text(face = "bold",size = 12, hjust = 0.5),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(), 
+        strip.text = element_blank(),
+        # strip.switch.pad.grid = unit(0.4, "cm") 
+      ) 
+    
+  } else {
+    
+    ggplot(tdwg_3_map) +
+      geom_sf(data = border, fill = "white", color = "black", size = 0.2) +
+      geom_sf(data = tdwg_3, fill = "white", color = "black", size = 0.1) +
+      geom_sf(aes(fill = LEVEL1_NAM), show.legend = F, color = "transparent", size = 0.1) +
+      # paletteer::scale_fill_paletteer_d("colorblindr::OkabeIto_black") +
+      scale_fill_manual(values = pal_val) +
+      #facet_grid(~LEVEL1_NAM, switch = "y") +
+      coord_sf(crs = eqearth_crs, expand = T) +
+      theme_minimal(base_size = 12) +
+      labs(
+        title = continent_name
+      )  +
+      theme(
+        plot.title.position = "plot",
+        plot.title = element_text(face = "bold",size = 12, hjust = 0.5),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(), 
+        strip.text = element_blank(),
+        # strip.switch.pad.grid = unit(0.4, "cm") 
+      ) 
+  }
+  
 }
 
 plot_curves_f <- function(continent_name, 
@@ -216,12 +251,12 @@ plot_curves_f <- function(continent_name,
 
 # data -------------------------------------------------------------------------
 
-null_prop_stats <- fread("output/plotting_data/red_srli_null_prop_stats_04_2026.txt") 
+null_prop_stats <- fread("output/plotting_data/red_srli_null_prop_stats_09_2026.txt") 
 
-null_props <- fread("output/plotting_data/red_srli_null_prop_04_2026.txt")
+null_props <- fread("output/plotting_data/red_srli_null_prop_09_2026.txt")
 
 null_growth <- 
-  fread("output/plotting_data/red_srli_null_growth_stats_cont_04_2026.txt") %>% 
+  fread("output/plotting_data/red_srli_null_growth_stats_cont_09_2026.txt") %>% 
   mutate(n = ifelse(is.na(n), 0, n), 
            
            dif_total = value - n, 
@@ -247,11 +282,11 @@ null_growth <-
  
 
 null_threat <- 
-  fread("output/plotting_data/red_srli_threat_stats_cor_fact_04_2026.txt") %>% 
+  fread("output/plotting_data/red_srli_threat_stats_cor_fact_09_2026.txt") %>% 
   mutate(dataset = paste0(dataset, "_threat"))
 
-acc_curves_cont <- fread("output/plotting_data/red_continent_acc_curves_04_2026.txt")
-redlist_country_growths <- fread("output/plotting_data/red_growths_country_comp_04_2026.txt")
+acc_curves_cont <- fread("output/plotting_data/red_continent_acc_curves_09_2026.txt")
+redlist_country_growths <- fread("output/plotting_data/red_growths_country_comp_09_2026.txt")
 
 
 tdwg_3 <- st_read(dsn ="data/wgsrpd-master/level3") %>% 
@@ -360,37 +395,8 @@ labels <- c("(a)","", "", "", "",
 )
 combined_plot <- plot_grid(plotlist = plot_list, nrow = 9, ncol = 5, labels = labels) 
 
-ggsave("04_20206_all_continents_redsrli.png", combined_plot, width = 14, height = 16, dpi = 600, 
+ggsave("09_20206_all_continents_redsrli_pubready.png", combined_plot, width = 14, height = 16, dpi = 900, 
        units = "in")
-
-x<- ggpubr::get_legend(plot_growth_sample_f(conts[1]))
-y<- ggpubr::get_legend(plot_pca_f(conts[1])) 
-
-
-legend_map_plot <- as.ggplot(x) +
-  theme(plot.margin = margin(0, 0, 0, 0), 
-        legend.margin = margin(0, 0, 0, 0),
-        legend.spacing.x = unit(0, "mm"),
-        legend.spacing.y = unit(0, "mm"))
-legend_map_plot2 <- as.ggplot(y) +
-  theme(plot.margin = margin(0, 0, 0, 0), 
-        legend.margin = margin(0, 0, 0, 0),
-        legend.spacing.x = unit(0, "mm"),
-        legend.spacing.y = unit(0, "mm"))
-
-xy <-   list(legend_map_plot,
-             legend_map_plot2)
-leg <- plot_grid(
-  plotlist = xy, ncol = 1 , 
-  rel_widths = rep(c(1,0.1,1), 2)
-  
-)
-
-
-ggsave("all_continents_leg.svg", leg, width = 6, 
-       units = "in")
-
-
 
 
 # --- growth from maps 
@@ -597,7 +603,7 @@ combined_plot <- plot_grid(plotlist = plot_list, nrow = 7, labels = paste0("(", 
   plot_layout( guides = "collect") 
 
 
-ggsave("red_growths_country_map_corr_04_2026.png", combined_plot, width = 10, height = 25, dpi = 600, 
+ggsave("red_growths_country_map_corr_09_2026.png", combined_plot, width = 10, height = 25, dpi = 900, 
        units = "in") 
 
 

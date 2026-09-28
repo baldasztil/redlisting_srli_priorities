@@ -63,8 +63,14 @@ plants_full_raw <- fread("data/wcvp_accepted_merged.txt")
 redlist_raw <- fread("data/redlist_data_04_2026.csv", sep = ",")
 table(redlist_raw$redlistCategory)
 
-srli_raw <-  fread("data/srli_data_04_2026.csv", sep = ",") %>% 
+srli_raw <-  fread("data/srli_data_09_2026.csv", sep = ",") %>% 
   filter(!is.na(redlistCategory))
+
+re_assessed <- srli_raw %>% 
+  filter(year > 2015)
+
+nrow(re_assessed) / nrow(srli_raw)
+
 
 length(unique(c(redlist_raw$plant_name_id, srli_raw$plant_name_id)))
 
@@ -375,10 +381,10 @@ dif_to_baseline <- rbind(dif_to_baseline_red, dif_to_baseline_srli)
 continent_growths <- rbind(redlist_continent_growths, srli_continent_growths)
 
 
-fwrite(red_srli_data_cont, "red_srli_null_growth_04_2026.txt")
-fwrite(red_srli_data_cont, "red_srli_null_growth_cont_04_2026.txt")
+fwrite(red_srli_data_cont, "red_srli_null_growth_09_2026.txt")
+fwrite(red_srli_data_cont, "red_srli_null_growth_cont_09_2026.txt")
 
-fwrite(dif_to_baseline, "red_srli_null_growth_stats_04_2026.txt")
-fwrite(continent_growths, "red_srli_null_growth_stats_cont_04_2026.txt")
+fwrite(dif_to_baseline, "red_srli_null_growth_stats_09_2026.txt")
+fwrite(continent_growths, "red_srli_null_growth_stats_cont_09_2026.txt")
 
 

@@ -11,6 +11,7 @@ library(tidyverse)
 library(data.table)
 library(sf)
 library(terra)
+library(janitor)
 options(dplyr.summarise.inform = FALSE) 
 
 
@@ -67,7 +68,7 @@ plants_full_raw <- fread("data/wcvp_accepted_merged.txt")
 redlist_raw <- fread("data/redlist_data_04_2026.csv", sep = ",")
 table(redlist_raw$redlistCategory)
 
-srli_raw <-  fread("data/srli_data_04_2026.csv", sep = ",") %>% 
+srli_raw <-  fread("data/srli_data_09_2026.csv", sep = ",") %>% 
   filter(!is.na(redlistCategory))
 
 
@@ -212,7 +213,7 @@ redlist_continent_growths <- plantlist_dist_phylo_growth %>%
   left_join(continent_names, by = "LEVEL3_NAM")
 
 
-fwrite(redlist_continent_growths, "red_growths_country_comp_04_2026.txt")
+fwrite(redlist_continent_growths, "red_growths_country_comp_09_2026.txt")
 
 # srli patterns  ---------------------------------------------------------------
 

@@ -25,7 +25,8 @@ pterido <- fread("PteridophyteRatingsForLudwig.csv") %>%
   mutate(id = "Pteridophytes", 
     year = NA, 
     yearPublished = NA) %>% 
-  dplyr::select(sp1 = Rank, scientificName = Rank , redlistCategory, year, yearPublished, id) 
+  dplyr::select(sp1 = Rank, scientificName = Rank , 
+                redlistCategory, year, yearPublished, id) 
 
 levels_order <- c(
   "Least Concern",
